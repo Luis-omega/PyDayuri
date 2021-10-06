@@ -1,0 +1,55 @@
+%import common.WS_INLINE
+%declare _INDENT _DEDENT
+%ignore WS_INLINE
+_NL: /(\r?\n[\t ]*)+/
+
+
+
+//_IDENTIFIER_HEAD : /(?!(\d|_))\w/u
+//_IDENTIFIER_BODY :  /\w/u
+IDENTIFIER : /(?!(\d|_))\w\w*/u
+
+
+UINT : /[1-9][0-9_]*/
+
+NUMERIC_HOLE : /_[1-9][0-9]*/
+NAMED_HOLE : /_(?!(\d|_))\w\w*/
+
+path : IDENTIFIER ("." IDENTIFIER)*
+
+import : "import" path "as" IDENTIFIER
+  | "import" path 
+
+pattern_hole :  NUMERIC_HOLE
+  | NAMED_HOLE
+
+pattern_list_recursive : pattern_list_recursive ","  pattern_match 
+  | "," pattern_match 
+
+pattern_list : "[" pattern_match pattern_list_recursive "]"
+  | "[" pattern_match "]" -> patter_list_singleton
+  | "[" "]" -> pattern_list_empty
+
+pattern_tuple_recursive : pattern_tuple_recursive "," pattern_match 
+  | "," pattern_match
+
+pattern_paren : "(" ")" -> pattern_empty
+  | "(" pattern_match ")" -> pattern_group
+  | "(" pattern_match pattern_tuple_recursive ")"  -> pattern_tuple
+
+_pattern_not_application : pattern_hole
+  | pattern_list
+  | pattern_paren
+
+pattern_application_recursive : pattern_application_recursive path
+  | pattern_application_recursive _pattern_not_application
+  | path
+  | _pattern_not_application
+
+pattern_application : path pattern_application_recursive 
+
+pattern_match : pattern_application
+
+start : pattern_match
+
+
