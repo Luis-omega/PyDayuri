@@ -56,10 +56,11 @@ pattern_application_recursive : pattern_application_recursive path
 // application has bigger precedence to be able to capture all the fields of the application
 // otherwise : f a b c would be parsed as (f (a (b c))) 
 // of course this means that we have to transform ((f a) b) c) to (f,[a b c]) if we want lists
-pattern_maybe_application : path pattern_application_recursive -> pattern_application
+pattern_path : path pattern_application_recursive -> pattern_application
   | path -> pattern_single_path
+  | path "@" pattern_match -> pattern_bind
 
-pattern_match : pattern_maybe_application
+pattern_match : pattern_path
 
 
 
