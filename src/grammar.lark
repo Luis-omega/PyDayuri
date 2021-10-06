@@ -23,6 +23,12 @@ import : "import" path "as" IDENTIFIER
 pattern_hole :  NUMERIC_HOLE
   | NAMED_HOLE
 
+
+// We are avoiding to use "*" and "+" in all the grammar
+// problem is that too much use leads to hidden shift//reduce  conflicts
+// we want a unambiguous grammar. 
+// I'll put "+" and "*" in the right places once we are more advanced
+// (or i won't since this way allow us to craft ourselves a parser later with ease)
 pattern_list_recursive : pattern_list_recursive ","  pattern_match 
   | "," pattern_match 
 
@@ -46,9 +52,17 @@ pattern_application_recursive : pattern_application_recursive path
   | path
   | _pattern_not_application
 
-pattern_application : path pattern_application_recursive 
 
-pattern_match : pattern_application
+// application has bigger precedence to be able to capture all the fields of the application
+// otherwise : f a b c would be parsed as (f (a (b c))) 
+// of course this means that we have to transform ((f a) b) c) to (f,[a b c]) if we want lists
+pattern_maybe_application : path pattern_application_recursive -> pattern_application
+  | path -> pattern_single_path
+
+pattern_match : pattern_maybe_application
+
+
+
 
 start : pattern_match
 
