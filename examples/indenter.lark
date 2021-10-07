@@ -1,0 +1,20 @@
+%declare _INDENT _DEDENT
+
+SPACES : /(\s|\r?\n)+/
+
+%ignore SPACES
+
+%declare _LET_SEPARATOR
+
+_LET : "let"
+_IN : "in"
+
+WORD : /\w+/
+
+eq : WORD "=" WORD
+
+let : _LET (eq _LET_SEPARATOR )+ _IN WORD
+
+start : let
+
+
