@@ -13,7 +13,7 @@ logger.setLevel(logging.INFO)
 
 class TreeIndenter(Indenter):
     REGULAR_INDENT = ("_INDENT", "_DEDENT", "_NL")
-    INDENT_BLOCKS = {"_LET":(IndentType.at_next, "_IN", "_LET_SEPARATOR")}
+    INDENT_BLOCKS = {"LET":(IndentType.at_next, "IN", "_LET_SEPARATOR")}
     PRODUCE_INDENT:Dict[str, IndentType] = dict()
 
 
