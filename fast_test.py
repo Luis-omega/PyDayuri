@@ -14,7 +14,7 @@ logger.setLevel(logging.INFO)
 class TreeIndenter(Indenter):
     REGULAR_INDENT = ("_INDENT", "_DEDENT", "_NL")
     INDENT_BLOCKS = {"LET":(IndentType.at_next, "IN", "_LET_SEPARATOR")}
-    PRODUCE_INDENT:Dict[str, IndentType] = dict()
+    PRODUCE_INDENT:Dict[str, IndentType] = {"IN":IndentType.at_next}
 
 
 with open("examples/indenter.lark") as f:
