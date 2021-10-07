@@ -1,0 +1,199 @@
+%import common.WS_INLINE
+%declare _INDENT _DEDENT
+%ignore WS_INLINE
+_NL: /(\r?\n[\t ]*)+/
+
+LPAR : "("
+RPAR : ")"
+LBRACE : "{"
+RBRACE : "}"
+LBRACKET : "["
+RBRACKET : "]"
+COME : ","
+POINT : "."
+ARROW : "->"
+
+IMPORT.2 : "import"
+AS.2 : "as"
+MODULE.2 : "module"
+WITH.2 : "with"
+MATCH.2 : "match"
+OF.2 : "of"
+
+BINDPATTERN.2 : "@"
+
+test_keywords : IMPORT | AS | MODULE | WITH | MATCH
+
+
+IDENTIFIER_HEAD : /(?!(\d|_))\w/u
+IDENTIFIER_BODY :  /\w/u
+IDENTIFIER : IDENTIFIER_HEAD IDENTIFIER_BODY*
+
+test_identifier_head : IDENTIFIER_HEAD
+test_identifier_body : IDENTIFIER_BODY
+test_identifier : IDENTIFIER
+
+
+test_keywords_over_identifier : test_keywords | test_identifier
+
+
+
+UINT_HEAD : "1".."9" 
+UINT_BODY : /[0-9]|_/
+UINT : UINT_HEAD UINT_BODY*
+
+test_uint_head : UINT_HEAD
+test_uint_body : UINT_BODY
+test_uint : UINT
+
+
+
+
+
+path : IDENTIFIER ("." IDENTIFIER)*
+
+import : "import" path "as" IDENTIFIER
+  | "import" path 
+
+
+
+
+many1{p} : p many1{p}
+  | p
+
+pattern_non_path : "[" pattern_match (","  pattern_match)* "]" -> pattern_list
+  | "[" "]" -> pattern_empty_list
+  | "(" ")" -> empty_pattern
+  | "(" pattern_match ")" -> pattern_group
+  | "(" pattern_match "," pattern_match (","  pattern_match)* ")"  -> pattern_tuple
+  | "_" -> hole
+
+pattern_application : path (pattern_non_path | path)+  
+
+
+pattern_match : pattern_application
+  | path
+  | IDENTIFIER "@" pattern_match  -> pattern_binded
+  | pattern_non_path
+
+match_case : pattern_match "->" exp 
+
+indent{p}: _NL _INDENT p _NL _DEDENT
+maybe_indent{p} : indent{p}
+  | p
+
+exp_eq : pattern_match "=" exp
+
+exp_atom : UINT
+  | "(" exp "," exp ("," exp)* ")" -> exp_tuple
+  | "match" exp "of" _NL _INDENT match_case (_NL match_case)* _NL _DEDENT -> exp_match
+  | "[" exp ("," exp)* "]" -> exp_list
+  | "[" "]" -> exp_empty_list
+  | "(" ")" -> exp_empty
+  | "(" exp ")" exp+ -> exp_function_application_group
+  | "(" exp ")"  -> exp_group
+  | "let" maybe_indent{exp_eq} "in" maybe_indent{exp} -> exp_let
+  | "let" maybe_indent{exp_eq} "in" maybe_indent{exp} -> exp_let
+  | "if" maybe_indent{exp} _NL? "then" maybe_indent{exp} _NL? "else" maybe_indent{exp} -> exp_if 
+
+
+exp_application_path : path (exp_atom|path)+
+
+exp: exp_application_path type_exp  -> exp_annotated
+  | path type_exp -> exp_annotated
+  | exp_atom type_exp -> exp_annotated
+  | exp_application_path
+  | path 
+  | exp_atom 
+
+
+type_non_path :  "[" type_exp "]" -> type_list
+  | "(" type_exp ")" -> type_group
+  | "(" type_exp ")" type_exp+ -> type_application_group
+  | "(" ")" -> type_empty
+
+_type_application_path : path (type_non_path| path)*
+
+//math associative (it doesn't matter)
+//wrap is used since _type_tuple leads to wrong tree in a->b->c*d->e
+type_tuple : (_type_application_path | type_non_path) ("*" (_type_application_path | type_non_path))+
+  | _type_application_path -> type_tuple_wrap
+  | type_non_path -> type_tuple_wrap
+
+
+//real_arrow if len>1
+//left associative
+type_arrow : (type_tuple "->")+ type_tuple
+
+type_exp : ":" (type_arrow | type_tuple )  (":" (type_arrow| type_tuple))*
+
+
+
+function_ars_wrap : IDENTIFIER
+
+function_args : function_ars_wrap (pattern_match ("," pattern_match)*)?
+
+function_body_declaration : _NL _INDENT exp (_NL exp)* _NL _DEDENT
+  | _INDENT exp _NL  exp (_NL exp)* _NL _DEDENT
+  | exp
+
+
+function_body_with_item : pattern_match "=" exp
+  | data
+  | recursive 
+  | namespace
+
+//function_body_with : _NL _INDENT function_body_with_item (_NL function_body_with_item )* _NL _DEDENT
+//  | _INDENT function_body_with_item _NL  function_body_with_item (_NL function_body_with_item)* _NL _DEDENT
+//  | function_body_with_item
+
+
+//function_body : ("declare" function_body_declaration )? ("with" function_body_with)? exp 
+// | ("declare" function_body_declaration )? exp ("with" function_body_with)? 
+
+function_body : exp
+
+function_definition : function_args "=" function_body 
+//  | function_args "=" _NL _INDENT function_body _NL _DEDENT
+//  | function_args _NL _INDENT exp "->" exp _NL _DEDENT 
+
+function_declare : IDENTIFIER type_exp
+
+function :  function_declare (_NL function_definition ";" (function_definition ";")+ )
+
+
+
+
+
+data_arg : IDENTIFIER 
+  | IDENTIFIER type_exp
+  | "(" data_arg ")"
+
+
+constructor : IDENTIFIER type_exp
+
+data : "data" IDENTIFIER data_arg* "=" constructor
+  | "data" IDENTIFIER data_arg* "=" _NL _INDENT (constructor* _NL)+ _DEDENT
+
+alias : "alias" IDENTIFIER "=" path
+
+recursive :  "recursive" _NL _INDENT (function _NL |data _NL)+ _DEDENT
+  | "recursive" _INDENT (function| data) _NL (function _NL |data _NL)+ _DEDENT
+  | "recursive" (function| data) 
+
+namespace : "space" _NL _INDENT ((function |data | recursive ) _NL)+ _DEDENT
+  | "space" _INDENT (function | data | recursive) _NL _INDENT ((function |data | recursive ) _NL)+ _DEDENT
+
+
+
+top_level : function 
+  | data
+  | alias
+  | recursive
+  | namespace
+
+
+program : import* top_level*
+
+start : _NL? "module" path _NL program _NL?
+  | _NL? program _NL?
