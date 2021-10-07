@@ -11,6 +11,15 @@ from lark.exceptions import LarkError
 from lark.lark import PostLex
 from lark.lexer import Token
 
+log =logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+log_handler = logging.StreamHandler()
+log_handler.setLevel(logging.DEBUG)
+log_format = logging.Formatter("%(filename)s-%(funcName)s-%(lineno)d: %(message)s")
+log_handler.setFormatter(log_format)
+log.addHandler(log_handler)
+
+logb = log.debug
 
 
 class AtNextToken(Enum):
@@ -155,50 +164,49 @@ class Indenter(PostLex, ABC):
     def handle_token_indentation(self, token)->Iterator[Token]:
         """traverses stack until lower indentation is found or raises errors on bad states"""
         assert token.column>=0
-        log = lambda x : logger.debug("handle_token_indentation "+x)
-        log("begins")
         if len(self.stack_state)== 0 :
-            log("no stack")
+            logb("stack is empty, accepting token")
             return token 
-        log2 = lambda x:log("loop "+x)
-        log2("begins")
+
+        logb("loop start")
         while len(self.stack_state) != 0:
             item = self.stack_state[-1]
-            log2(repr(item))
+            logb("top item=repr(item)")
 
             if isinstance(item,Indent):
-                log2("is Indent")
                 if item.level == token.column :
+                    logb("token is at level of stack item, injecting separator")
                     yield self.make_separator(token)
                     break
                 elif item.level > token.column :
+                    logb("stack item is further indented than token, inject dedent and pop item")
                     yield self.make_dedent(token)
                     self.stack_state.pop()
                 else:
+                    logb("token is further indented than stack item, inlining token")
                     break
             elif isinstance(item,BlockStart):
-                log2("is BlockStart")
                 if item.match(token):
-                    log2("token match item")
+                    logb(f"{repr(item)} is closed by {show_token(token)}")
                     if item.level <= token.column:
-                        log2("same level, dedent")
-                        self.stack_state.pop()
+                        logb("token is further indented than stack item, injecting dedent and poping item")
                         yield item.make_separator(token)
+                        self.stack_state.pop()
                         break
                     elif item.level > token.column:
-                        log2("item>token, indent error")
+                        logb("stack item is further indented than token, bad indent for closing item")
                         raise ExpectedCloseToken(token, item, True)
                 else:
-                    log2("token wont close item")
+                    logb("token won't close item")
                     if item.level > token.column:
-                        log2("item>token, indentation error")
+                        logb("stack item is further indented than token, indentation error or missing close token")
                         raise ExpectedCloseToken(token, item, False)
                     elif item.level == token.column:
-                        log2("item==token, separator")
+                        logb("token is at same level of stack item, injecting separator ")
                         yield item.make_separator(token)
                         break
                     else:
-                        log2("item<token, inline")
+                        logb("token further indented than stack item, inlining token")
                         break
             else:
                 raise ReportBug()
@@ -206,48 +214,68 @@ class Indenter(PostLex, ABC):
     def add_indent_token(self, level:int,token:Token,last_token:Optional[Token]=None)->None:
         if len(self.stack_state)>0:
             last_item = self.stack_state[-1]
+            logb("stack isn't empty, check if token is indented further")
             if last_item.level >= level:
+                logb("new indent level is too short")
                 raise UnexpectedIndentRegular(last_item,level, token, last_token)
         item = Indent(level)
+        logb("adding Indent to stack")
         self.stack_state.append(item)
 
     def add_indent_block(self, token:Token,last_token:Token)->None:
         if len(self.stack_state)>0:
             last_item = self.stack_state[-1]
+            logb("stack isn't empty, check if token is indented further")
             if last_item.level >= token.column:
-                    raise UnexpectedIndentBlock(last_item, token.column , token, last_token)
+                logb("new indent level is too short")
+                raise UnexpectedIndentBlock(last_item, token.column , token, last_token)
+        #todo : ADD else here to test for token.column>0 to avoid begin a indent at 0 
         block = self.indent_blocks.get(last_token.type)
         if block is None :
+            logb("we had tested before that last_token is part of named block producers, this only makes sense on bug")
             raise ReportBug()
         indent_place,end_type,separator_type = block
+        logb(f"named block info: indent={indent_place}, ends_at={end_type}, produce_separators={separator_type}")
         if indent_place == IndentType.at_start:
+            logb(f"set level at start of {show_token(last_token)}")
             level = last_token.column
         elif indent_place == IndentType.at_end:
+            logb(f"set level at end of {show_token(last_token)}")
             level = last_token.column_end
         elif indent_place == IndentType.at_next:
+            logb(f"set level at start of {show_token(token)}")
             level = token.column
         else :
+            logb("We expect indent_place to be a IndentType and had just this cases")
             raise ReportBug()
         block_item = BlockStart(last_token, end_type, separator_type, level)
+        logb("adding BlockStart to stack")
         self.stack_state.append(block_item)
 
     def new_state(self, token:Token)->AtNextToken:
         """finds if indentation must be added to stack and returns state"""
+        logb("testing if token is an anon block producer")
         maybe_type = self.produce_indent.get(token.type)
         if maybe_type is None:
+            logb("testing if token is a named block producer")
             maybe_block_tuple = self.indent_blocks.get(token.type)
             if maybe_block_tuple is None :
+                logb("token wasn't a block producer")
                 return AtNextToken.nothing
             else :
+                logb("set state to add named block at next token")
                 return AtNextToken.add_block
         else:
             if maybe_type == IndentType.at_start:
+                logb("adding anon block at token start={token.column}")
                 self.add_indent_token(token.column, token)
                 return AtNextToken.nothing
             elif maybe_type == IndentType.at_end:
+                logb("adding anon block at token end={token.column_end}")
                 self.add_indent_token(token.column_end,token )
                 return AtNextToken.nothing
             elif maybe_type == IndentType.at_next:
+                logb("set state to add anon block at next token")
                 return AtNextToken.add_indent_start
             else:
                 raise ReportBug()
@@ -255,31 +283,36 @@ class Indenter(PostLex, ABC):
     def _process(self, stream:Iterator[Token])->Iterator[Token]:
         last_token = None
         for token in stream:
-            logger.debug(f"_process begin state : {self.state} {self.stack_state}")
+            logb(f"for begins with {show_token(token)}")
+            logb(f"state : {repr(self)}")
             if self.state == AtNextToken.add_block:
-                logger.debug(f"_process add_block {repr(token)}")
                 #we need to add the new token before match indentation or we loose info.
                 if last_token is None :
                     raise ReportBug()
 
+                logb(f"adding block started by {show_token(last_token)}, at level of {show_token(token)}")
                 self.add_indent_block(token,last_token)
+                logb("state set to nothing")
                 self.state = AtNextToken.nothing
 
             elif self.state == AtNextToken.add_indent_start:
-                logger.debug(f"_process add indent {repr(token)}")
                 if last_token is None :
                     raise ReportBug()
 
+                logb(f"adding anon block started by {show_token(last_token)}, at level of {show_token(token)}")
                 self.add_indent_token(token.column, last_token)
+                logb("state set to nothing")
                 self.state = AtNextToken.nothing
             
             else:
                 #there wasn't a pending order to add indentation at this token, so we only care of 
                 #indentation stack
-                logger.debug(f"_process nothing {repr(token)}")
+                logb(f"checking if we need to dedent {show_token(token)}")
                 yield from self.handle_token_indentation(token) 
 
             
+            logb("pending emits of new blocks or dedents were handled")
+            logb("testing if we need to add new things")
             self.state = self.new_state(token)
             last_token = token
             yield token
@@ -314,3 +347,12 @@ class Indenter(PostLex, ABC):
     def REGULAR_INDENT(self) -> Tuple[str, str,str]:
         """_Indent, _Dedent, _NL"""
         raise NotImplementedError()
+
+    def __repr__(self):
+        state = str(self.state)
+        if len(self.stack_state)==0 :
+            return state + " [ ]"
+        stack = [repr(item)  for item in self.stack_state]
+        stack_str = ",\n    ".join(stack)
+        return state + "\n    [    \n    " + stack_str + "\n    ]"
+
