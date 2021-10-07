@@ -1,0 +1,12 @@
+
+module Nat
+
+data Eq a b =
+  Refl :  Eq a a 
+
+data Nat = 
+  Z : Nat
+  S : Nat -> Nat
+
+zero : Nat
+zero = Z;
