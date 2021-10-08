@@ -7,7 +7,7 @@ WORD : /\w+/
 
 eq : WORD "=" WORD
 
-let : "let" (eq _LET_SEPARATOR )+ "in" _INDENT _NL WORD _DEDENT
+let : "let" (_LET_SEPARATOR eq)+ "in" _INDENT _NL WORD _DEDENT
 
 start : let
 
