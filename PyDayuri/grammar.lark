@@ -26,19 +26,14 @@ pattern_hole :  NUMERIC_HOLE
   | HOLE
 
 
-pattern_list_recursive : pattern_list_recursive ","  pattern_match 
-  | "," pattern_match 
-
-pattern_list : "[" pattern_match ("," pattern_match) "]"
+pattern_list : "[" pattern_match ("," pattern_match)+ "]"
   | "[" pattern_match "]" -> patter_list_singleton
   | "[" "]" -> pattern_list_empty
 
-pattern_tuple_recursive : pattern_tuple_recursive "," pattern_match 
-  | "," pattern_match
 
 pattern_paren : "(" ")" -> pattern_empty
   | "(" pattern_match ")" -> pattern_group
-  | "(" pattern_match pattern_tuple_recursive ")"  -> pattern_tuple
+  | "(" pattern_match ("," pattern_match)+ ")"  -> pattern_tuple
 
 _pattern_not_application : pattern_hole
   | pattern_list
@@ -60,62 +55,38 @@ pattern_path : path pattern_application_recursive -> pattern_application
 pattern_match : pattern_path
 
 
-exp_tuple_recursive : exp_tuple_recursive "," _exp 
-  | "," _exp
-
 
 exp_paren :  "(" ")" -> exp_empty
-  | "(" _exp exp_tuple_recursive ")" -> exp_tuple
+  | "(" _exp ("," _exp )+ ")" -> exp_tuple
   | "(" _exp ")"  -> exp_group
 
-exp_list_recursive : exp_list_recursive "," _exp
-  | "," _exp
 
 exp_bracket : "[" "]" -> exp_list_empty
-  | "[" _exp exp_list_recursive "]" -> exp_list
+  | "[" _exp ("," _exp) "]" -> exp_list
   | "[" _exp "]" -> exp_list_singleton
 
 exp_let_eq : pattern_match "=" _exp
 
 _indent_block{p} : _NL _INDENT p _NL? _DEDENT 
 
-indent_with_head{head, p} :  head _NL _INDENT p _NL? _DEDENT
-
-_maybe_indent{p} : _indent_block{p}
-  | p
-
-exp_let_indent_inner : (exp_let_eq _NL)+
-
-
-//it seems like eof produces a _DEDENT without making a _NL, so 
-//parser fails unless we allow to not consume _NL at end
-exp_let_end : "in" _indent_block{_exp}
-  | "in" _indent_block{_exp}
-
-exp_let : "let" _indent_block{exp_let_indent_inner} exp_let_end
- // | "let" indent_with_head{exp_let_eq, exp_let_indent_inner} exp_let_end 
-  | "let" exp_let_eq "in" _exp
+exp_let : "let" exp_let_eq  "in" _exp
+  | "let" exp_let_eq "in" _NL _INDENT _exp _NL _DEDENT
+  | "let" _NL  _INDENT ( exp_let_eq _NL)* exp_let_eq _NL _DEDENT  "in" _exp
+  | "let" _NL  _INDENT ( exp_let_eq _NL)* exp_let_eq _NL _DEDENT  "in" _NL _INDENT _exp _NL _DEDENT
 
 exp_match_case : pattern_match "->" _exp
 
 exp_match : "match" _exp "of" _NL _INDENT exp_match_case (_NL exp_match_case)* _NL _DEDENT
 
-exp_if : "if" _exp _NL? "then" _exp _NL? "else" _exp
 
-_exp_allowed_as_argument : exp_paren 
-  | exp_bracket 
-  | path
-
-
-exp_application : path _exp_allowed_as_argument   
-  | exp_paren _exp_allowed_as_argument
+exp_application : path _exp
+  | exp_paren _exp
 
 _exp_atom : UINT
   | exp_paren
   | exp_bracket
   | exp_let
   | exp_match
-  | exp_if
   | exp_application
 
 
@@ -127,6 +98,8 @@ _exp : exp_free
   | exp_annotated
 
 
-start : exp_let _NL?
+
+
+start : _exp _NL?
 
 
