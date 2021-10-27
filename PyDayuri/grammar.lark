@@ -96,12 +96,6 @@ _exp :  _exp_atom [":" type_exp]
 prenex_prefix : ("forall"|"∀") (IDENTIFIER )* "," 
 
 
-//a * b -> c d *f -> w
-//a * b -> (c d *f -> w)
-//a * b -> ((c d) *f -> w)
-//a * b -> (((c d) *f) -> w)
-
-
 type_atom : "unit8"
   | "unit32"
   | "unit64"
@@ -124,7 +118,7 @@ type_arrow : type_tuple "->" type_arrow
 type_exp : [prenex_prefix] type_arrow
 
 
-data_type_constructor_arg : IDENTIFIER ":" type_exp
+data_type_constructor_arg : "(" IDENTIFIER ":" type_exp ")"
   | IDENTIFIER
   | "(" data_type_constructor_arg ")"
 
