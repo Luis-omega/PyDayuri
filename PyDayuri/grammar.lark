@@ -9,8 +9,8 @@ _NL: /(\r?\n[\t ]*)+/
 //_IDENTIFIER_BODY :  /\w/u
 IDENTIFIER : /(?!(\d|_))\w\w*/u
 
-
 UINT : /[1-9][0-9_]*/
+
 
 NUMERIC_HOLE.2 : /_[1-9][0-9]*/
 NAMED_HOLE.2 : /_(?!(\d|_))\w\w*/
@@ -97,16 +97,16 @@ _exp :  _exp_atom
 prenex_prefix : ("forall"|"∀") (IDENTIFIER )* "," 
 
 
-type_atom : "unit8"
-  | "unit32"
-  | "unit64"
-  | "string"
-  | "(" type_arrow ")"
-  | path
+type_atom : "unit8" -> type_basic
+  | "unit32" -> type_basic
+  | "unit64" -> type_basic
+  | "string" -> type_basic
+  | "(" type_arrow ")" -> type_paren
+  | path -> type_var
 
 
-type_application : type_atom type_application
-  | type_atom "$" type_application
+type_application : type_application  type_atom 
+  | type_application "$" type_atom 
   | type_atom
 
 type_tuple : type_tuple "*" type_application
