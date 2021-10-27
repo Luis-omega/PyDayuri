@@ -21,6 +21,7 @@ path : IDENTIFIER ("." IDENTIFIER)*
 import : "import" path "as" IDENTIFIER
   | "import" path 
 
+
 pattern_hole :  NUMERIC_HOLE
   | NAMED_HOLE
   | HOLE
@@ -39,10 +40,7 @@ _pattern_not_application : pattern_hole
   | pattern_list
   | pattern_paren
 
-pattern_application_recursive : pattern_application_recursive path
-  | pattern_application_recursive _pattern_not_application
-  | path
-  | _pattern_not_application
+pattern_application_recursive : (_pattern_not_application | path)+
 
 
 // application has bigger precedence to be able to capture all the fields of the application
@@ -67,7 +65,6 @@ exp_bracket : "[" "]" -> exp_list_empty
 
 exp_let_eq : pattern_match "=" _exp
 
-_indent_block{p} : _NL _INDENT p _NL? _DEDENT 
 
 exp_let : "let" exp_let_eq  "in" _exp
   | "let" exp_let_eq "in" _NL _INDENT _exp _NL _DEDENT
@@ -81,8 +78,10 @@ exp_match : "match" _exp "of" _NL _INDENT exp_match_case (_NL exp_match_case)* _
 
 exp_application : path _exp
   | exp_paren _exp
+  | _exp "$" _exp
 
 _exp_atom : UINT
+  | path
   | exp_paren
   | exp_bracket
   | exp_let
@@ -90,16 +89,57 @@ _exp_atom : UINT
   | exp_application
 
 
-exp_annotated : "a" _exp_atom ":" "b"
-
-exp_free : _exp_atom
-
-_exp : exp_free
-  | exp_annotated
+_exp :  _exp_atom [":" type_exp]
 
 
+prenex_prefix : ("forall"|"∀") (IDENTIFIER )* "," IDENTIFIER
 
 
-start : _exp _NL?
+//a * b -> c d *f -> w
+//a * b -> (c d *f -> w)
+//a * b -> ((c d) *f -> w)
+//a * b -> (((c d) *f) -> w)
+
+
+type_atom : "unit8"
+  | "unit32"
+  | "unit64"
+  | "string"
+  | "(" type_arrow ")"
+  | path
+
+
+type_application : type_atom type_application
+  | type_application "$" type_application
+  | type_atom
+
+type_tuple : type_application "*" type_tuple
+  | type_application
+
+type_arrow : type_tuple ("->" type_arrow)
+  |type_tuple
+
+
+type_exp : type_arrow
+
+
+data_type_constructor_arg : IDENTIFIER ":" type_arrow
+  | IDENTIFIER
+  | "(" data_type_constructor_arg ")"
+
+data_type_prefix : "data" IDENTIFIER [prenex_prefix]
+
+data_type : data_type_prefix "=" _NL _INDENT  (IDENTIFIER data_type_constructor_arg* _NL)* _DEDENT
+
+
+function_declaration : IDENTIFIER ":" type_exp _NL
+
+function_definition_prefix : pattern_match ("$" pattern_match)*
+
+function_definition : IDENTIFIER [function_definition_prefix] "="  _exp _NL
+  | IDENTIFIER [function_definition_prefix] "=" _NL _INDENT _exp _NL _DEDENT
+
+
+start : _NL? (import _NL)* ((function_declaration | function_definition | data_type ))*  _NL?
 
 
