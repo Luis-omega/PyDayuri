@@ -3,7 +3,7 @@ from typing import List
 import logging
 
 
-from lark import Lark, logger
+from lark import Lark, logger, Token
 from lark.exceptions import UnexpectedToken, UnexpectedCharacters
 from lark.indenter import Indenter
 
@@ -19,13 +19,16 @@ class TreeIndenter(Indenter):
     tab_len = 4
 
 with open("PyDayuri/grammar.lark") as grammar:
-  p = Lark(grammar,parser="lalr", postlex=TreeIndenter(), debug=True)
+  p = Lark(grammar,parser="lalr", postlex=TreeIndenter(), debug=True, maybe_placeholders=True, cache=False)
 
-"""
+def ignore_errors(e):
+    return False
+
+
 with open(sys.argv[1]) as f :
   f2 = f.read()
   try :
-    parsed = p.parse(f2)
+    parsed = p.parse(f2, on_error= ignore_errors)
     print(f2)
     print()
     print(parsed.pretty())
@@ -34,5 +37,4 @@ with open(sys.argv[1]) as f :
       print(e)
   except UnexpectedCharacters as e:
       print(e)
-"""
 
