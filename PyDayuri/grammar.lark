@@ -93,7 +93,7 @@ _exp_atom : UINT
 _exp :  _exp_atom [":" type_exp]
 
 
-prenex_prefix : ("forall"|"∀") (IDENTIFIER )* "," IDENTIFIER
+prenex_prefix : ("forall"|"∀") (IDENTIFIER )* "," 
 
 
 //a * b -> c d *f -> w
@@ -121,7 +121,7 @@ type_arrow : type_tuple "->" type_arrow
   |type_tuple
 
 
-type_exp : type_arrow
+type_exp : [prenex_prefix] type_arrow
 
 
 data_type_constructor_arg : IDENTIFIER ":" type_exp

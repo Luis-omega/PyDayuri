@@ -1,4 +1,6 @@
 
+
+
 data nat =  
   Z
 
