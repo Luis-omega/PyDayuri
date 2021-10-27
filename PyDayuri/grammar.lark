@@ -78,7 +78,8 @@ exp_match : "match" _exp "of" _NL _INDENT exp_match_case (_NL exp_match_case)* _
 
 exp_application : path _exp
   | exp_paren _exp
-  | _exp "$" _exp
+  | path "$" _exp
+  | exp_paren "$" _exp
 
 _exp_atom : UINT
   | path
