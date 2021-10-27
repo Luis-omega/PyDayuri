@@ -90,7 +90,8 @@ _exp_atom : UINT
   | exp_application
 
 
-_exp :  _exp_atom [":" type_exp]
+_exp :  _exp_atom 
+  | "(" _exp_atom ":" type_exp ")"
 
 
 prenex_prefix : ("forall"|"∀") (IDENTIFIER )* "," 
