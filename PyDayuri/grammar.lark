@@ -110,20 +110,20 @@ type_atom : "unit8"
 
 
 type_application : type_atom type_application
-  | type_application "$" type_application
+  | type_atom "$" type_application
   | type_atom
 
-type_tuple : type_application "*" type_tuple
+type_tuple : type_tuple "*" type_application
   | type_application
 
-type_arrow : type_tuple ("->" type_arrow)
+type_arrow : type_tuple "->" type_arrow
   |type_tuple
 
 
 type_exp : type_arrow
 
 
-data_type_constructor_arg : IDENTIFIER ":" type_arrow
+data_type_constructor_arg : IDENTIFIER ":" type_exp
   | IDENTIFIER
   | "(" data_type_constructor_arg ")"
 
