@@ -7,3 +7,4 @@ data bool =
 if : forall e, bool -> e -> e -> e
 if True et ef = et
 if False et ef = ef
+

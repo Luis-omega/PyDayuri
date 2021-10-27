@@ -5,6 +5,11 @@ data nat =
   Z
 
 add : nat -> nat -> nat
-add Z $ m = Z
-add n $ Z = Z
+add Z $ m = m
+add n $ Z = n
 add S n $ m = S $ add n m
+
+mul : nat -> nat -> nat
+mul Z $ m = Z
+mul n $ Z = Z
+mul S n $ m = add m $ mul n m
